@@ -233,12 +233,19 @@ func (r *Repo) ComputeHistoricalValuations(ctx context.Context, userID string) (
 	}
 	res := []DailyValuation{}
 	for d := start; !d.After(end); d = d.Add(24 * time.Hour) {
-		targetTS := d.Add(24 * time.Hour).Add(-1 * time.Second) // End of the day
-		rows, err := r.db.QueryxContext(ctx, `SELECT symbol, COALESCE(SUM(quantity)::text,'0') AS qty FROM rewards WHERE user_id = $1 AND timestamp <= $2 AND status = 'COMPLETED' GROUP BY symbol`, userID, targetTS)
+		// targetTS is the very last moment of day 'd' in UTC
+		targetTS := d.Add(24 * time.Hour).Add(-1 * time.Microsecond)
+		
+		rows, err := r.db.QueryxContext(ctx, `
+			SELECT symbol, COALESCE(SUM(quantity)::text,'0') AS qty 
+			FROM rewards 
+			WHERE user_id = $1 AND timestamp <= $2 AND status = 'COMPLETED' 
+			GROUP BY symbol`, userID, targetTS)
 		if err != nil {
 			r.log.Warnf("get cumulative quantities failed for %v: %v", d, err)
 			continue
 		}
+		
 		var total decimal.Decimal
 		for rows.Next() {
 			var sym string
@@ -248,14 +255,18 @@ func (r *Repo) ComputeHistoricalValuations(ctx context.Context, userID string) (
 				continue
 			}
 			qty, _ := decimal.NewFromString(qtyStr)
+			
 			var priceStr sql.NullString
-			if err := r.db.GetContext(ctx, &priceStr, `SELECT price_inr FROM price_history WHERE symbol=$1 AND timestamp <= $2 ORDER BY timestamp DESC LIMIT 1`, sym, targetTS); err != nil {
-				r.log.Debugf("price not found for %s on %s: %v", sym, d.Format("2006-01-02"), err)
+			err := r.db.GetContext(ctx, &priceStr, `
+				SELECT price_inr 
+				FROM price_history 
+				WHERE symbol = $1 AND timestamp <= $2 
+				ORDER BY timestamp DESC LIMIT 1`, sym, targetTS)
+			
+			if err != nil || !priceStr.Valid {
 				continue
 			}
-			if !priceStr.Valid {
-				continue
-			}
+			
 			p, _ := decimal.NewFromString(priceStr.String)
 			total = total.Add(qty.Mul(p))
 		}
