@@ -21,10 +21,8 @@ func main() {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
-	err := godotenv.Load()
-	if err != nil {
-		logger.Fatalf("Error loading .env file: %v", err)
-	}
+	// Load .env file if it exists, but don't fail if it's missing (e.g. in production)
+	_ = godotenv.Load()
 
 	dsn := os.Getenv("POSTGRES_URL")
 	if dsn == "" {
