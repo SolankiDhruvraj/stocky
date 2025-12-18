@@ -71,3 +71,12 @@ docker run -p 8080:8080 --env-file .env stocky
 5. Run migrations against the Railway database URL.
 
 **Live API URL**: [https://api.dhruvrajsolanki.in](https://api.dhruvrajsolanki.in)
+
+
+## Postman Collection
+
+You can test all API endpoints using the Postman collection below:
+
+👉 **Postman Collection:**  
+[https://www.postman.com/campaa/workspace/new-workspace/collection/23889350-11a3ec58-c3b4-4374-9df9-6b256c959482?action=share&creator=23889350](https://www.postman.com/campaa/workspace/new-workspace/collection/23889350-11a3ec58-c3b4-4374-9df9-6b256c959482?action=share&creator=23889350)
+
