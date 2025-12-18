@@ -77,6 +77,12 @@ func (r *Repo) CreateReward(ctx context.Context, userID, symbol string, quantity
 		return "", false, err
 	}
 
+	priceQ := `INSERT INTO price_history (symbol, price_inr, timestamp) VALUES ($1, $2::numeric, $3)`
+	if _, err := tx.ExecContext(ctx, priceQ, symbol, price.StringFixed(4), ts); err != nil {
+		tx.Rollback()
+		return "", false, err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return "", false, err
 	}
@@ -218,7 +224,6 @@ func (r *Repo) GetDailyValuations(ctx context.Context, userID string) ([]DailyVa
 }
 
 func (r *Repo) ComputeHistoricalValuations(ctx context.Context, userID string) ([]DailyValuation, error) {
-	// find the earliest reward date
 	var minDate sql.NullTime
 	if err := r.db.GetContext(ctx, &minDate, `SELECT MIN(timestamp) FROM rewards WHERE user_id = $1`, userID); err != nil {
 		return nil, err
@@ -228,9 +233,7 @@ func (r *Repo) ComputeHistoricalValuations(ctx context.Context, userID string) (
 	}
 	start := minDate.Time.UTC().Truncate(24 * time.Hour)
 	end := time.Now().UTC().Truncate(24 * time.Hour).Add(-24 * time.Hour)
-	r.log.Infof("Computing historical valuations for user %s: start=%s, end=%s", userID, start.Format("2006-01-02"), end.Format("2006-01-02"))
 	if !start.Before(end) && !start.Equal(end) {
-		r.log.Infof("Start date %s is after end date %s, returning empty", start.Format("2006-01-02"), end.Format("2006-01-02"))
 		return []DailyValuation{}, nil
 	}
 	res := []DailyValuation{}
@@ -248,7 +251,6 @@ func (r *Repo) ComputeHistoricalValuations(ctx context.Context, userID string) (
 		}
 		
 		var total decimal.Decimal
-		foundPrice := false
 		for rows.Next() {
 			var sym string
 			var qtyStr string
@@ -270,12 +272,10 @@ func (r *Repo) ComputeHistoricalValuations(ctx context.Context, userID string) (
 			if err == nil && priceStr.Valid {
 				p, _ := decimal.NewFromString(priceStr.String)
 				total = total.Add(qty.Mul(p))
-				foundPrice = true
 			}
 		}
 		rows.Close()
 		
-		// For debugging: if total is 0 but we expected data, we can see it here
 		res = append(res, DailyValuation{
 			Date:     d.Format("2006-01-02"), 
 			TotalINR: total,
