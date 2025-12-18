@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS daily_valuations;
+DROP TABLE IF EXISTS price_history;
+DROP TABLE IF EXISTS holdings;
+DROP TABLE IF EXISTS ledger_entries;
+DROP TABLE IF EXISTS rewards;
+DROP TABLE IF EXISTS stocks;
+DROP TABLE IF EXISTS users;
+DROP EXTENSION IF EXISTS pgcrypto;
