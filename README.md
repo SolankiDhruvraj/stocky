@@ -60,6 +60,64 @@ docker build -t stocky .
 docker run -p 8080:8080 --env-file .env stocky
 ```
 
+## Database Schema
+**Link for visual representation: ** [https://dbdiagram.io/d/stocky-6944d3d64bbde0fd74c67eb1](https://dbdiagram.io/d/stocky-6944d3d64bbde0fd74c67eb1)
+<img width="1255" height="1026" alt="stocky" src="https://github.com/user-attachments/assets/22f05fb0-849e-4dcc-a732-0eafbfd5907c" />
+
+Table users {
+  id text [pk]
+  name text
+}
+
+Table stocks {
+  symbol text [pk]
+  name text
+}
+
+Table rewards {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id text [ref: > users.id]
+  symbol text [ref: > stocks.symbol]
+  quantity numeric
+  timestamp timestamptz
+  idempotency_key text [unique]
+  source text
+  status text [default: 'COMPLETED', note: 'Added in migration 0004']
+  created_at timestamptz [default: `now()`]
+}
+
+Table ledger_entries {
+  id uuid [pk, default: `gen_random_uuid()`]
+  reward_id uuid [ref: > rewards.id]
+  entry_time timestamptz [default: `now()`]
+  account_debit text
+  account_credit text
+  amount_inr numeric
+  stock_symbol text
+  stock_quantity numeric
+  description text
+}
+
+Table holdings {
+  user_id text [pk, ref: > users.id]
+  symbol text [pk, ref: > stocks.symbol]
+  quantity numeric [default: 0]
+  last_updated timestamptz [default: `now()`]
+}
+
+Table price_history {
+  id bigserial [pk]
+  symbol text [ref: > stocks.symbol]
+  price_inr numeric
+  timestamp timestamptz
+}
+
+Table daily_valuations {
+  user_id text [pk, ref: > users.id]
+  date date [pk]
+  total_inr numeric
+}
+
 ## Deployment (Railway)
 
 1. Connect the GitHub repository to Railway.
